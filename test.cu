@@ -4,10 +4,7 @@
 #include <vector>
 #include <cstdio>
 
-using data_type = double;
-
-
-
 int main(int argc, char *argv[]) {
+    cublasHandle_t handle;
     
 }
