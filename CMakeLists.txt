@@ -8,6 +8,8 @@ project(MyCublasProject LANGUAGES CXX CUDA)
 
 add_executable(${PROGRAM_NAME} test.cu) # Assuming a CUDA source file
 
+# add_library(${PROGRAM_NAME} STATIC test.cu)
+
 target_include_directories(${PROGRAM_NAME}
     PUBLIC
         ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
@@ -18,4 +20,5 @@ target_link_libraries(${PROGRAM_NAME}
         cublas
 )
 
-
+# install(TARGETS MMLib DESTINATION lib)
+# install(DIRECTORY include/ DESTINATION include)

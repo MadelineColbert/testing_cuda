@@ -2,7 +2,8 @@
 
 typedef enum {
     MMSUCCESS=0,
-    SIZE_MISMATCH=1
+    SIZE_MISMATCH=1,
+    MMERROR=2
 } MMStatus;
 
 typedef struct size_response {

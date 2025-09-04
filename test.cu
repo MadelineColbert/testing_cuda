@@ -1,9 +1,4 @@
-#include <cstdlib>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <vector>
-#include <cstdio>
-#include "include/em_mm_types.h"
+#include "include/my_cublas_app.h"
 
 using data_type= double;
 
@@ -46,21 +41,22 @@ MMStatus matrix_multiplication(
     cudaStream_t stream = NULL;
     cublasOperation_t op1 = CUBLAS_OP_N;
     cublasOperation_t op2 = CUBLAS_OP_N;
+
     data_type *d_a = nullptr;
     data_type *d_b = nullptr;
     data_type *d_c = nullptr;
 
-    cublasCreate(&h);
-    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-    cublasSetStream(h, stream);
+    CUBLAS_CHECK(cublasCreate(&h));
+    CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    CUBLAS_CHECK(cublasSetStream(h, stream));
 
-    cudaMalloc((void**)&d_a, b_ex*c_ex*sizeof(data_type));
-    cudaMalloc((void**)&d_b, c_ex*a_ex*sizeof(data_type));
-    cudaMalloc((void**)&d_c, b_ex*a_ex*sizeof(data_type));
+    CUDA_CHECK(cudaMalloc((void**)&d_a, b_ex*c_ex*sizeof(data_type)));
+    CUDA_CHECK(cudaMalloc((void**)&d_b, c_ex*a_ex*sizeof(data_type)));
+    CUDA_CHECK(cudaMalloc((void**)&d_c, b_ex*a_ex*sizeof(data_type)));
 
-    cudaMemcpyAsync(d_a, A.data(), b_ex*c_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream);
-    cudaMemcpyAsync(d_b, B.data(), c_ex*a_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream);
-    cudaMemcpyAsync(d_c, C.data(), b_ex*a_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream);
+    CUDA_CHECK(cudaMemcpyAsync(d_a, A.data(), b_ex*c_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream));
+    CUDA_CHECK(cudaMemcpyAsync(d_b, B.data(), c_ex*a_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream));
+    CUDA_CHECK(cudaMemcpyAsync(d_c, C.data(), b_ex*a_ex*sizeof(data_type), cudaMemcpyHostToDevice, stream));
 
     const double alpha = 1.0;
     const double beta = 1.0;
@@ -68,27 +64,23 @@ MMStatus matrix_multiplication(
     int ldb = b_ex;
     int ldc = c_ex;
 
-    cublasStatus_t status = cublasDgemm(
+    CUBLAS_CHECK(cublasDgemm(
         h, op1, op2, c_ex, 
         a_ex, b_ex, &alpha, 
         d_a, lda, d_b, ldb, 
         &beta, d_c, ldc
-    );
+    ));
 
-    if (status != CUBLAS_STATUS_SUCCESS) {
-        printf("CUDA error %d at %s:%d\n", status, __FILE__, __LINE__);
-    }
+    CUDA_CHECK(cudaMemcpyAsync(C.data(), d_c, b_ex*a_ex*sizeof(data_type), cudaMemcpyDeviceToHost, stream));
 
-    cudaMemcpyAsync(C.data(), d_c, b_ex*a_ex*sizeof(data_type), cudaMemcpyDeviceToHost, stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    cudaStreamSynchronize(stream);
+    CUDA_CHECK(cudaFree(d_a));
+    CUDA_CHECK(cudaFree(d_b));
+    CUDA_CHECK(cudaFree(d_c));
 
-    cudaFree(d_a);
-    cudaFree(d_b);
-    cudaFree(d_c);
-
-    cublasDestroy(h);
-    cudaStreamDestroy(stream);
+    CUBLAS_CHECK(cublasDestroy(h));
+    CUDA_CHECK(cudaStreamDestroy(stream));
 
     return MMSUCCESS;
 }
@@ -99,12 +91,9 @@ int main(int argc, char *argv[]) {
     std::vector<data_type> C = {1,2,3,4,5,6,7,8}; // 2x4
     
     MMStatus result = matrix_multiplication(A,B,C);
-   
-    printf("%d", result);
+    
+    printf("%d\n", result);
 
-    for (auto i : C) {
-        printf("%f ", i);
-    }
     return 0;
     // printf("CEX: %d\n", c_ex);
     // printf("BEX: %d\n", b_ex);
