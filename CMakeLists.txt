@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR) # Recommended minimum version for CMAKE_CUDA_ARCHITECTURES
 
+set(CMAKE_CUDA_ARCHITECTURES "native")
+
 set(PROGRAM_NAME "my_cublas_app")
 
 project(MyCublasProject LANGUAGES CXX CUDA)
