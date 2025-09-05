@@ -14,12 +14,11 @@ struct csp_resp {
     std::vector<data_type> h_A;
     std::vector<data_type> workspace;
     std::vector<int> devipiv;
-    int* devinfo;
+    int devinfo=0;
 
     csp_resp(int mv, int nv) 
         : m(mv), n(nv),
           h_A(mv*nv),
-          workspace(mv*nv),
           devipiv(min(mv,nv)) {
 
     }
@@ -43,11 +42,17 @@ void cusolver_problem(csp_resp *test_in) {
     int malloc_size = test_in->m*test_in->n*sizeof(data_type);
 
     CUDA_CHECK(cudaMalloc((void**)&d_A, malloc_size));
-    CUDA_CHECK(cudaMalloc((void**)&d_workspace,  malloc_size));
     CUDA_CHECK(cudaMalloc((void**)&d_devipiv,  min(test_in->m,test_in->n)*sizeof(int)));
     CUDA_CHECK(cudaMalloc((void**)&d_devinfo,  sizeof(int)));
 
     CUDA_CHECK(cudaMemcpyAsync(d_A, test_in->h_A.data(), malloc_size, cudaMemcpyHostToDevice, stream));
+
+    int lwork=0;
+
+    cusolverDnDgetrf_bufferSize(handle, test_in->m, test_in->n, d_A, lda, &lwork);
+
+    CUDA_CHECK(cudaMalloc((void**)&d_workspace,  sizeof(data_type)*lwork));
+
 
     CUSOLVER_CHECK(cusolverDnDgetrf(handle, test_in->m, test_in->n, d_A, lda, d_workspace, d_devipiv, d_devinfo));
 
@@ -57,7 +62,7 @@ void cusolver_problem(csp_resp *test_in) {
 
     CUDA_CHECK(cudaMemcpyAsync(test_in->devipiv.data(), d_devipiv, min(test_in->m,test_in->n)*sizeof(int), cudaMemcpyDeviceToHost, stream));
     
-    // CUDA_CHECK(cudaMemcpyAsync(test_in->devinfo, d_devinfo, sizeof(int), cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaMemcpyAsync(&(test_in->devinfo), d_devinfo, sizeof(int), cudaMemcpyDeviceToHost, stream));
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
@@ -90,5 +95,13 @@ int main () {
     cusolver_problem(&test_in);
     for (auto i : test_in.h_A) {
         printf("%f ", i);
+    }
+    printf("\n");
+    for (auto i : test_in.workspace) {
+        printf("%f ", i);
+    }
+    printf("\n");
+    for (auto i : test_in.devipiv) {
+        printf("%d ", i);
     }
 }
